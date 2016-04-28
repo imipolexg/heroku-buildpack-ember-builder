@@ -225,6 +225,8 @@ fi
 
 status "Building Ember CLI application $build_env distribution"
 $emberapp_root/node_modules/ember-cli/bin/ember build --environment $build_env | indent
+status "Building Ember bridge $EMBER_BRIDGE_ENV"
+$emberapp_root/node_modules/ember-cli/bin/ember build --environment $EMBER_BRIDGE_ENV | indent
 
 if test -f $emberapp_root/hooks/after_hook.sh; then
   status "After hook detected. Running..."
