@@ -9,6 +9,7 @@ set -o pipefail
 
 build_dir=$1
 emberapp_root=$1/$EMBER_ROOT
+status "Installing emberapp located at $emberapp_root"
 cache_dir=$2
 env_dir=$3
 # This gets the root directory of the buildpack itself
