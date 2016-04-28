@@ -106,6 +106,7 @@ fi
 
 # If node_modules directory is checked into source control then
 # rebuild any native deps. Otherwise, restore from the build cache.
+
 if test -d $ember_root/node_modules; then
   status "Found existing node_modules directory; skipping cache"
   status "Rebuilding any native dependencies"
@@ -174,7 +175,7 @@ else
   npm install bower --save-dev --quiet --no-optional --userconfig $ember_root/.npmrc 2>&1 | indent
 fi
 
-PATH=$build_dir/node_modules/bower/bin:$PATH
+PATH=$ember_root/node_modules/bower/bin:$PATH
 
 status "Pruning cached bower dependencies not specified in bower.json"
 bower prune 2>&1 | indent
