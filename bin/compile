@@ -8,7 +8,7 @@ set -o pipefail
 # set -x            
 
 build_dir=$1
-emberapp_root=$1/$EMBER_ROOT
+emberapp_root=$1$EMBER_ROOT
 cache_dir=$2
 env_dir=$3
 # This gets the root directory of the buildpack itself
@@ -18,7 +18,6 @@ bp_dir=$(cd $(dirname $0); cd ..; pwd)
 unset GIT_DIR
 # Load some convenience functions like status(), echo(), and indent()
 source $bp_dir/bin/common.sh
-status "Installing $EMBER_ENV emberapp located at $emberapp_root"
 status "Exporting config vars to environment"
 export_env_dir $env_dir
 
@@ -27,6 +26,8 @@ if [ "$BUILD_DEBUG" == "true" ]; then
   set -x
 fi
 
+status "EMBER_ROOT=$EMBER_ROOT"
+status "Installing $EMBER_ENV emberapp located at $emberapp_root"
 build_env=${EMBER_ENV:-production}
 status "Building environment: $build_env"
 
