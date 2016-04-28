@@ -8,7 +8,7 @@ set -o pipefail
 # set -x            
 
 build_dir=$1
-ember_root=$1/$EMBER_ROOT
+emberapp_root=$1/$EMBER_ROOT
 cache_dir=$2
 env_dir=$3
 # This gets the root directory of the buildpack itself
@@ -30,13 +30,13 @@ fi
 build_env=${EMBER_ENV:-production}
 status "Building environment: $build_env"
 
-mkdir -p $ember_root/vendor
+mkdir -p $emberapp_root/vendor
 
 # Output npm debug info on error
 trap cat_npm_debug_log ERR
 
 # Look in package.json's engines.node field for a semver range
-semver_range=$($bp_dir/vendor/jq -r .engines.node $ember_root/package.json)
+semver_range=$($bp_dir/vendor/jq -r .engines.node $emberapp_root/package.json)
 
 # Resolve node version using semver.io
 node_version=$(curl --silent --get --data-urlencode "range=${semver_range}" https://semver.io/node/resolve)
@@ -62,16 +62,16 @@ fi
 # Download node from Heroku's S3 mirror of nodejs.org/dist
 status "Downloading and installing node"
 node_url="http://s3pository.heroku.com/node/v$node_version/node-v$node_version-linux-x64.tar.gz"
-curl $node_url -s -o - | tar xzf - -C $ember_root
+curl $node_url -s -o - | tar xzf - -C $emberapp_root
 
 # Move node (and npm) into ./vendor and make them executable
-mkdir -p $ember_root/vendor
-mv $ember_root/node-v$node_version-linux-x64 $ember_root/vendor/node
-chmod +x $ember_root/vendor/node/bin/*
-PATH=$ember_root/vendor/node/bin:$PATH
+mkdir -p $emberapp_root/vendor
+mv $emberapp_root/node-v$node_version-linux-x64 $emberapp_root/vendor/node
+chmod +x $emberapp_root/vendor/node/bin/*
+PATH=$emberapp_root/vendor/node/bin:$PATH
 
 # Optionally bootstrap a different npm version
-npm_engine=$($bp_dir/vendor/jq -r .engines.npm $ember_root/package.json)
+npm_engine=$($bp_dir/vendor/jq -r .engines.npm $emberapp_root/package.json)
 
 if [ "$npm_engine" != "null" ]; then
   if ! [[ "$npm_engine" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -92,22 +92,22 @@ else
   status "Using default npm version: `npm --version`"
 fi
 
-cd $ember_root
+cd $emberapp_root
 
 if [ "$REBUILD_ALL" == "true" ] || [ "$REBUILD_NODE_PACKAGES" == "true" ]; then
   status "Forcing rebuild of all node_modules. Pruning all node_modules."
-  rm -rf $ember_root/node_modules $cache_dir/node_modules
+  rm -rf $emberapp_root/node_modules $cache_dir/node_modules
 fi
 
 if [ "$REBUILD_ALL" == "true" ] || [ "$REBUILD_BOWER_PACKAGES" == "true" ]; then
   status "Forcing re-installation of all bower_components. Pruning all bower_components."
-  rm -rf $ember_root/bower_components $cache_dir/bower_components
+  rm -rf $emberapp_root/bower_components $cache_dir/bower_components
 fi
 
 # If node_modules directory is checked into source control then
 # rebuild any native deps. Otherwise, restore from the build cache.
 
-if test -d $ember_root/node_modules; then
+if test -d $emberapp_root/node_modules; then
   status "Found existing node_modules directory; skipping cache"
   status "Rebuilding any native dependencies"
   npm rebuild 2>&1 | indent
@@ -119,7 +119,7 @@ else
     mkdir -p $cache_dir/node_modules
   fi
 
-  ln -s $cache_dir/node_modules $ember_root/node_modules
+  ln -s $cache_dir/node_modules $emberapp_root/node_modules
 
   if test -f $cache_dir/.heroku/node-version && [ $(cat $cache_dir/.heroku/node-version) != "$node_version" ]; then
     status "Node version changed since last build; rebuilding dependencies"
@@ -128,7 +128,7 @@ else
 fi
 
 # Restore bower_components from cache if it exists
-if test -d $ember_root/bower_components; then
+if test -d $emberapp_root/bower_components; then
   status "Found existing bower_components directory; skipping cache"
 else
   if test -d $cache_dir/bower_components; then
@@ -138,7 +138,7 @@ else
     mkdir -p $cache_dir/bower_components
   fi
 
-  ln -s $cache_dir/bower_components $ember_root/bower_components
+  ln -s $cache_dir/bower_components $emberapp_root/bower_components
 fi
 
 
@@ -165,31 +165,32 @@ npm prune 2>&1 | indent
 status "Installing dependencies"
 # Make npm output to STDOUT instead of its default STDERR
 npm install --quiet --no-optional --userconfig $build_dir/.npmrc 2>&1 | indent
+PATH=$emberapp_root/node_modules/.bin:$PATH
 
-PATH=$ember_root/node_modules/.bin:$PATH
-
-if type bower > /dev/null 2>&1 || test -e $ember_root/node_modules/bower/bin/bower; then
+if type bower > /dev/null 2>&1 || test -e $emberapp_root/node_modules/bower/bin/bower; then
   status "Bower already exists"
 else
   status "Installing bower which is required by other dependencies"
-  npm install bower --save-dev --quiet --no-optional --userconfig $ember_root/.npmrc 2>&1 | indent
+  npm install bower --save-dev --quiet --no-optional --userconfig $emberapp_root/.npmrc 2>&1 | indent
 fi
 
-PATH=$ember_root/node_modules/bower/bin:$PATH
+PATH=$emberapp_root/node_modules/bower/bin:$PATH
 # ensure the bower.json is in our cwd
-cd $ember_root 
+
 status "Pruning cached bower dependencies not specified in bower.json"
 bower prune 2>&1 | indent
 
 status "Running bower install"
-status $(pwd) 
-if [ -f $ember_root/bower.json ]; then
+status `pwd` 
+status $emberapp_root
+cd $emberapp_root
+if test -f  $emberapp_root/bower.json; then
     status "found bower.json... but"
 fi
 bower install --quiet | indent
 
 # Add the project's and ember-cli's dependencies' binaries to the PATH
-PATH=$ember_root/node_modules/.bin:$ember_root/node_modules/ember-cli/node_modules/.bin:$PATH
+PATH=$emberapp_root/node_modules/.bin:$emberapp_root/node_modules/ember-cli/node_modules/.bin:$PATH
 
 # Persist goodies like node-version in the slug
 mkdir -p $build_dir/.heroku
@@ -199,8 +200,8 @@ echo $node_version > $build_dir/.heroku/node-version
 cp -r $build_dir/.heroku $cache_dir/
 
 status "Cleaning up node-gyp and npm artifacts"
-rm -rf "$ember_root/.node-gyp"
-rm -rf "$ember_root/.npm"
+rm -rf "$emberapp_root/.node-gyp"
+rm -rf "$emberapp_root/.npm"
 
 if [ "$GIT_SSH_KEY" != "" ]; then
   # Now that npm & bower have finished running, we should not need the ssh key anymore.  Kill ssh-agent
@@ -209,15 +210,15 @@ if [ "$GIT_SSH_KEY" != "" ]; then
   export GIT_SSH_KEY=0
 fi
 
-if test -f $ember_root/hooks/before_hook.sh; then
+if test -f $emberapp_root/hooks/before_hook.sh; then
   status "Before hook detected. Running..."
-  source $ember_root/hooks/before_hook.sh
+  source $emberapp_root/hooks/before_hook.sh
 fi
 
 status "Building Ember CLI application $build_env distribution"
-$ember_root/node_modules/ember-cli/bin/ember build --environment $build_env | indent
+$emberapp_root/node_modules/ember-cli/bin/ember build --environment $build_env | indent
 
-if test -f $ember_root/hooks/after_hook.sh; then
+if test -f $emberapp_root/hooks/after_hook.sh; then
   status "After hook detected. Running..."
-  source $ember_root/hooks/after_hook.sh
+  source $emberapp_root/hooks/after_hook.sh
 fi
