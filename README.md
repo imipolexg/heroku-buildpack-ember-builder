@@ -36,48 +36,17 @@ repo. So if your emberapp's `package.json` is stored in `resources/emberapp/pack
 
 Have the buildpack run your own scripts before and after the `ember build` by
 creating a `hooks/before_hook.sh` or `hooks/after_hook.sh` file in your Ember
-CLI application:
+application root:
 
     $ mkdir -p hooks
 
-For a before build hook:
+For a before build hook edit `hooks/before_hook.sh`, and for an after build
+hook, edit `hooks/after_hook.sh`.
 
-    $ touch hooks/before_hook.sh
-    $ chmod +x hooks/before_hook.sh
-
-For an after build hook:
-
-    $ touch hooks/after_hook.sh
-    $ chmod +x hooks/after_hook.sh
-
-*See below for examples.*
-
-#### Example Before Hook: Compass
-
-[Compass](http://compass-style.org) can be installed using the before build hook. Create `hooks/before_hook.sh` and add the following script:
-
-```bash
-#!/usr/bin/env bash
-
-export GEM_HOME=$build_dir/.gem/ruby/2.2.0
-export PATH=$GEM_HOME/bin:$PATH
-
-if test -d $cache_dir/ruby/.gem; then
-  status "Restoring ruby gems directory from cache"
-  cp -r $cache_dir/ruby/.gem $build_dir
-  HOME=$build_dir gem update compass --user-install --no-rdoc --no-ri
-else
-  HOME=$build_dir gem install compass --user-install --no-rdoc --no-ri
-fi
-
-rm -rf $cache_dir/ruby
-mkdir -p $cache_dir/ruby
-
-if test -d $build_dir/.gem; then
-  status "Caching ruby gems directory for future builds"
-  cp -r $build_dir/.gem $cache_dir/ruby
-fi
-```
+These scripts are sourced by the `compile` script, not executed, so they don't
+need the executable bit set. They will 'inherit' all the environment variables
+set up in the `compile` script, so read through that if you want to get your
+bearings.
 
 ### Force Rebuilds
 
