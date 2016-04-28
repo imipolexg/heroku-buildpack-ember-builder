@@ -1,112 +1,42 @@
-Note: A recent change to the buildpack has made caching much more aggressive. If you are having trouble deploying run...
+# Heroku Buildpack for executing and deploying Ember CLI apps as part of another app 
 
-    $ heroku config:set REBUILD_ALL=true
-    $ heroku plugins:install https://github.com/heroku/heroku-repo.git
-    $ heroku repo:purge_cache -a APPNAME
+This buildpack's purpose is to install node and ember-cli to enable deploying
+ember apps as part of another app. Say you've got a Laravel or a Rails app and
+you need to deploy the ember build to the public files path. This is the
+buildpack for you. It doesn't configure any webserver instances, just fetches
+the necessary dependencies and executes the required ember build commands to
+deploy your emberapp.
 
-Be sure to replace `APPNAME` with your app's name. Now, push your repo up. Once that build is complete, your dependencies are rebuilt and cached. Now, unset the var...
-
-    $ heroku config:unset REBUILD_ALL
-
-Future deploys should now work much faster!
-
-# Heroku Buildpack for Ember CLI Applications
-
-This buildpack will work out of the box with Ember CLI generated applications. It installs Node, Nginx and generates a production build with the Ember CLI.
+Forked from
+[heroku-buildpack-ember-cli](https://github.com/tonycoco/ember-buildpack-ember-cli).
 
 ## Usage
 
-Creating a new Heroku instance from an Ember CLI application's parent directory:
+Typically this will be included as an additional buildpack. So configure your
+heroku app like normally, then add this top the *top* of the buildpack list.
 
-    $ heroku create --buildpack https://github.com/tonycoco/heroku-buildpack-ember-cli.git
-
-    $ git push heroku master
-    ...
-    -----> Heroku receiving push
-    -----> Fetching custom buildpack
-    ...
-
-Or, use the Heroku Deploy button:
-
-[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
+    $ heroku buildpacks:add --app your-app-name --index 1 https://github.com/imipolexg/heroku-buildpack-ember-builder
 
 ## Configuration
 
-You can set a few different environment variables to turn on features in this buildpack.
+You'll need to set a few environment variables fort his to work.
 
-### Nginx Workers
+### Ember app root
 
-Set the number of workers for Nginx (Default: `4`):
+You'll need to specifiy the relative path of your Emberapp within your git
+repo. So if your emberapp's `package.json` is stored in `resources/emberapp/package.json` do:
 
-    $ heroku config:set NGINX_WORKERS=4
+    $ heroku config:set EMBER_ROOT="resources/emberapp"
 
-This will depend on your Heroku instance size and the amount of dynos.
-
-### API Proxy
-
-Set an API proxy URL:
-
-    $ heroku config:set API_URL=http://api.example.com/
-
-Set your API's prefix path (Default: `/api/`):
-
-    $ heroku config:set API_PREFIX_PATH=/api/
-
-*Trailing slashes are important. For more information about API proxies and avoiding CORS, [read this](http://oskarhane.com/avoid-cors-with-nginx-proxy_pass).*
-
-### Authentication
-
-Setting `BASIC_AUTH_USER` and `BASIC_AUTH_PASSWORD` in your Heroku application will activate basic authentication:
-
-    $ heroku config:set BASIC_AUTH_USER=EXAMPLE_USER
-    $ heroku config:set BASIC_AUTH_PASSWORD=EXAMPLE_PASSWORD
-
-*Be sure to use HTTPS for added security.*
-
-### Force HTTPS/SSL
-
-For most Ember applications that make any kind of authenticated requests HTTPS should be used. It supports the headers `X-Forwarded-Proto` ([used by Heroku](https://devcenter.heroku.com/articles/http-routing#heroku-headers)) and `CF-Visitor` ([used by CloudFlare](https://support.cloudflare.com/hc/en-us/articles/200170536-How-do-I-redirect-HTTPS-traffic-with-Flexible-SSL-and-Apache-)). Enable this feature in Nginx by setting `FORCE_HTTPS`:
-
-    $ heroku config:set FORCE_HTTPS=true
-
-### Prerender.io
-
-[Prerender.io](https://prerender.io) allows your application to be crawled by search engines.
-
-Set the service's host and token:
-
-    $ heroku config:set PRERENDER_HOST=service.prerender.io
-    $ heroku config:set PRERENDER_TOKEN=<your-prerender-token>
-
-*Sign up for the hosted [Prerender.io](https://prerender.io) service or host it yourself. See the [project's repo](https://github.com/prerender/prerender) for more information.*
-
-### Naked Domain Redirection
-
-Visitors can be redirected from your "naked domain" (`example.com`) to `www.example.com`. Set your naked domain:
-
-    $ heroku config:set NAKED_DOMAIN=example.com
-
-*This uses a HTTP 301 redirect to forward the request. All parameters are preserved.*
-
-### Private Repositories
-
-Configure a `GIT_SSH_KEY` to allow Heroku access to private repositories:
-
-    $ heroku config:set GIT_SSH_KEY=<base64-encoded-private-key>
-
-If present, the buildpack expects the base64 encoded contents of a private key whose public key counterpart has been registered with GitHub on an account with access to any private repositories needed by the application. Prior to executing `npm install` and `bower install` it decodes the contents into a file, launches ssh-agent and registers that keyfile. Once NPM install is finished, it cleans up the environment and file system of the key contents.
-
-Private NPM dependency URLs must be in the form of `git+ssh://git@github.com:[user]/[repo].git`. Private Bower dependency URLs must be in the form of `git@github.com:[user]/[repo].git`. Either NPM or Bower URLs may have a trailing `#semver`.
-
-### Environment
-
-Choose the environment you want to build by setting:
+### Build environment 
 
     $ heroku config:set EMBER_ENV=production
 
 ### Before and After Hooks
 
-Have the buildpack run your own scripts before and after the `ember build` by creating a `hooks/before_hook.sh` or `hooks/after_hook.sh` file in your Ember CLI application:
+Have the buildpack run your own scripts before and after the `ember build` by
+creating a `hooks/before_hook.sh` or `hooks/after_hook.sh` file in your Ember
+CLI application:
 
     $ mkdir -p hooks
 
@@ -151,7 +81,11 @@ fi
 
 ### Force Rebuilds
 
-Sometimes it is necessary to rebuild NPM modules or Bower dependencies from scratch.  This can become necessary when updating Ember or EmberCLI midway through a project and cleaning the Bower and NPM caches doesn't always refresh the cache in the Dyno during the next deployment.  In those cases, here is a simple and clean way to force a rebuild.
+Sometimes it is necessary to rebuild NPM modules or Bower dependencies from
+scratch.  This can become necessary when updating Ember or EmberCLI midway
+through a project and cleaning the Bower and NPM caches doesn't always refresh
+the cache in the Dyno during the next deployment.  In those cases, here is a
+simple and clean way to force a rebuild.
 
 To force a rebuild of NPM modules *and* Bower dependencies:
 
@@ -174,26 +108,20 @@ To force a rebuild of Bower dependencies:
     git push heroku master
     heroku config:unset REBUILD_BOWER_PACKAGES
 
-### Custom Nginx
-
-In your Ember CLI application, add a `config/nginx.conf.erb` file and add your own Nginx configuration.
-
-*You should copy the existing configuration file in this repo and make changes to it for best results.*
-
 ### Caching
 
-The Ember CLI buildpack caches your NPM and Bower dependencies by default. This is similar to the [Heroku Buildpack for Node.js](https://github.com/heroku/heroku-buildpack-nodejs). This makes typical deployments much faster. Note that dependencies like [`components/ember#canary`](http://www.ember-cli.com/#using-canary-build-instead-of-release) will not be updated on each deploy.
+The Ember CLI buildpack caches your NPM and Bower dependencies by default. This
+is similar to the [Heroku Buildpack for
+Node.js](https://github.com/heroku/heroku-buildpack-nodejs). This makes typical
+deployments much faster. Note that dependencies like
+[`components/ember#canary`](http://www.ember-cli.com/#using-canary-build-instead-of-release)
+will not be updated on each deploy.
 
-To [purge the cache](https://github.com/heroku/heroku-repo#purge_cache) and reinstall all dependencies, run:
+To [purge the cache](https://github.com/heroku/heroku-repo#purge_cache) and
+reinstall all dependencies, run:
 
     $ heroku plugins:install https://github.com/heroku/heroku-repo.git
     $ heroku repo:purge_cache -a APPNAME
-
-### IP Whitelist
-
-Setting `IP_WHITELIST` in your Herkou application to a comma delimited list of IP addresses or CIDR blocks will restrict access to your application to only those values.
-
-    $ heroku config:set IP_WHITELIST=192.168.0.0/24,192.168.1.42
 
 ## Troubleshooting
 
@@ -205,11 +133,13 @@ Clean your project's dependencies:
     $ npm install --no-optional
     $ bower install
 
-Be sure to save any Bower or NPM resolutions. Now, let's build your Ember CLI application locally:
+Be sure to save any Bower or NPM resolutions. Now, let's build your Ember CLI
+application locally:
 
     $ ember build
 
-Check your `git status` and see if that process has made any changes to your application's code. Now, try your Heroku deployment again.
+Check your `git status` and see if that process has made any changes to your
+application's code. Now, try your Heroku deployment again.
 
 ## Contributing
 
@@ -221,34 +151,7 @@ Check your `git status` and see if that process has made any changes to your app
 
 ## Contributors
 
-A special thanks to everyone who maintains and helps out on the project!
-
-- Aaron Chambers
-- Aaron Ortbals
-- Aaron Renner
-- Adriaan
-- Adriaan van Rossum
-- Bill Curtis
-- Brett Chalupa
-- Chris Santero
-- Donal Byrne
-- GabKlein
-- Gabriel Klein
-- John Griffin
-- Jonas Brusman
-- Jonathan Johnson
-- Jonathan Zempel
-- Jordan Morano
-- Juan Pablo Pinilla Ossa
-- Kori Roys
-- Matt McGinnis
-- Mayank Patel
-- Optimal Cadence
-- Peter Brown
-- Rob Guilfoyle
-- Ryan LeFevre
-- Tony Coconate
-- harianus
-- sbl
-
-_Generated with: `git log --format='%aN' | sort -u`._
+This buildpack is a fork of
+[heroku-buildpack-ember-cli](https://github.com/tonycoco/heroku-buildpack-ember-cli),
+which it quite easy to hack this variation up. Thanks to everyone who worked on
+that. 
