@@ -176,10 +176,16 @@ else
 fi
 
 PATH=$ember_root/node_modules/bower/bin:$PATH
-
+# ensure the bower.json is in our cwd
+cd $ember_root 
 status "Pruning cached bower dependencies not specified in bower.json"
 bower prune 2>&1 | indent
 
+status "Running bower install"
+status $(pwd) 
+if [ -f $ember_root/bower.json ]; then
+    status "found bower.json... but"
+fi
 bower install --quiet | indent
 
 # Add the project's and ember-cli's dependencies' binaries to the PATH
