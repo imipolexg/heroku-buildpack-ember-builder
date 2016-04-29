@@ -34,9 +34,8 @@ else
     emberapp_root+=$EMBER_ROOT
 fi
 
-status "Installing $EMBER_ENV emberapp located at $emberapp_root"
 build_env=${EMBER_ENV:-production}
-status "Building environment: $build_env"
+status "Installing $build_env emberapp located at $emberapp_root"
 
 mkdir -p $emberapp_root/vendor
 
@@ -189,11 +188,12 @@ status "Pruning cached bower dependencies not specified in bower.json"
 bower prune 2>&1 | indent
 
 status "Running bower install"
-status `pwd` 
-status $emberapp_root
+
+# Ensure we're in the right working directory
 cd $emberapp_root
+
 if test -f  $emberapp_root/bower.json; then
-    status "found bower.json... but"
+    status "found bower.json... "
 fi
 bower install --quiet | indent
 
