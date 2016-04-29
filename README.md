@@ -122,5 +122,5 @@ application's code. Now, try your Heroku deployment again.
 
 This buildpack is a fork of
 [heroku-buildpack-ember-cli](https://github.com/tonycoco/heroku-buildpack-ember-cli),
-which it quite easy to hack this variation up. Thanks to everyone who worked on
-that. 
+which made it quite easy to hack this variation up. Thanks to everyone who
+worked on that. 
